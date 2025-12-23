@@ -2,70 +2,71 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CBE Unified Analytics Portal</title>
+    <title>CBE Unified Financial Portal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        :root { --cbe-blue: #003366; --cbe-gold: #c5a059; --bg: #f4f7f9; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
+        :root { --cbe-blue: #003366; --cbe-gold: #c5a059; --slate: #1e293b; --bg: #f8fafc; }
+        body { font-family: 'Inter', system-ui, sans-serif; background: var(--bg); margin: 0; color: var(--slate); }
         
-        /* Header & Button Styling */
-        .control-panel { 
-            background: white; padding: 20px; border-radius: 12px; 
-            box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px;
-            display: flex; gap: 15px; align-items: center; justify-content: center;
-        }
-        .btn { 
-            padding: 12px 24px; border-radius: 8px; border: none; 
-            font-weight: bold; cursor: pointer; transition: all 0.3s;
-            text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
-        }
-        .btn-pdf { background: var(--cbe-blue); color: white; }
-        .btn-pdf:hover { background: #004a94; transform: translateY(-2px); }
-        .btn-fx { background: var(--cbe-gold); color: white; }
-        .btn-fx:hover { background: #b08e4d; transform: translateY(-2px); }
+        /* Layout */
+        .header { background: var(--cbe-blue); color: white; padding: 20px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .nav-container { display: flex; justify-content: center; gap: 15px; padding: 20px; background: white; border-bottom: 1px solid #e2e8f0; position: sticky; top: 0; z-index: 100; }
+        .main-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 20px; max-width: 1600px; margin: auto; }
+        
+        /* Buttons */
+        .btn { padding: 12px 24px; border-radius: 6px; border: none; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 8px; }
+        .btn-blue { background: var(--cbe-blue); color: white; }
+        .btn-gold { background: var(--cbe-gold); color: white; }
+        .btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
-        /* Data Display Styling */
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; overflow: hidden; display: none; }
-        .card.active { display: block; }
-        .card-header { background: #f8fafc; padding: 15px; border-bottom: 2px solid #e2e8f0; font-weight: bold; color: var(--cbe-blue); }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 12px; background: #f8fafc; font-size: 11px; color: #64748b; text-transform: uppercase; }
-        td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
-        .val { font-family: 'Courier New', monospace; text-align: right; font-weight: bold; }
+        /* PDF Viewer Section */
+        .pdf-viewer-container { background: #525659; border-radius: 12px; height: 80vh; overflow: hidden; border: 1px solid #ddd; position: sticky; top: 100px; }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        /* Table Styling */
+        .data-section { height: 80vh; overflow-y: auto; padding-right: 10px; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); margin-bottom: 20px; border: 1px solid #e2e8f0; }
+        .card-header { padding: 15px; border-bottom: 1px solid #f1f5f9; font-weight: bold; color: var(--cbe-blue); background: #f8fafc; }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        th { text-align: left; padding: 12px; background: #f1f5f9; color: #64748b; font-size: 11px; text-transform: uppercase; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
+        .val { font-family: 'JetBrains Mono', monospace; text-align: right; font-weight: bold; color: #0f172a; }
         
-        #pdf-data-container { display: block; } /* PDF tables show by default */
+        @media (max-width: 1000px) { .main-grid { grid-template-columns: 1fr; } .pdf-viewer-container { height: 400px; } }
     </style>
 </head>
 <body>
 
-<div class="container">
-    <div class="control-panel">
-        <a href="yoo.pdf" target="_blank" class="btn btn-pdf">
-            📄 View Full yoo.pdf
-        </a>
+<div class="header">
+    <h1 style="margin:0; font-size: 24px;">Central Bank of Egypt Statistics Portal</h1>
+</div>
+
+<div class="nav-container">
+    <button class="btn btn-blue" onclick="scrollToData()">📊 View Extracted Tables</button>
+    <button class="btn btn-gold" onclick="toggleFX()">💰 Live FX Rates (EGP)</button>
+    <a href="yoo.pdf" target="_blank" class="btn" style="background:#64748b; color:white; text-decoration:none;">📂 Pop-out PDF</a>
+</div>
+
+<div class="main-grid">
+    <div class="data-section" id="data-area">
         
-        <button class="btn btn-fx" onclick="toggleFX()">
-            💰 Live EGP Exchange Rates
-        </button>
-    </div>
+        <div id="fx-card" class="card" style="display:none; border-left: 5px solid var(--cbe-gold);">
+            <div class="card-header">Live EGP Exchange Rates (Interbank)</div>
+            <table>
+                <thead>
+                    <tr><th>Currency</th><th>Pair</th><th>Buy</th><th>Sell</th></tr>
+                </thead>
+                <tbody id="fx-body">
+                    </tbody>
+            </table>
+        </div>
 
-    <div id="fx-card" class="card">
-        <div class="card-header">Live Interbank Exchange Rates (EGP)</div>
-        <table>
-            <thead>
-                <tr><th>Currency</th><th>Buy Rate</th><th>Sell Rate</th><th>Status</th></tr>
-            </thead>
-            <tbody id="fx-body">
-                <tr><td>USD / EGP</td><td id="usd-buy" class="val">...</td><td id="usd-sell" class="val">...</td><td>Live</td></tr>
-                <tr><td>EUR / EGP</td><td id="eur-buy" class="val">...</td><td id="eur-sell" class="val">...</td><td>Live</td></tr>
-            </tbody>
-        </table>
-    </div>
-
-    <div id="pdf-data-container">
-        <div id="status" style="text-align:center; color:#666; margin-bottom:10px;">Loading data from yoo.pdf...</div>
+        <div id="status" style="padding:10px; font-size:12px; color:#94a3b8;">Scanning yoo.pdf...</div>
         <div id="output"></div>
+    </div>
+
+    <div class="pdf-viewer-container">
+        <iframe src="yoo.pdf#toolbar=0" title="PDF Document"></iframe>
     </div>
 </div>
 
@@ -73,34 +74,42 @@
     const PDF_PATH = 'yoo.pdf';
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-    // Toggle Exchange Rate Visibility
     function toggleFX() {
-        const fxCard = document.getElementById('fx-card');
-        fxCard.classList.toggle('active');
-        if(fxCard.classList.contains('active')) fetchLiveRates();
+        const card = document.getElementById('fx-card');
+        card.style.display = card.style.display === 'none' ? 'block' : 'none';
+        if(card.style.display === 'block') fetchRates();
     }
 
-    // Fetch Actual Exchange Rates
-    async function fetchLiveRates() {
+    async function fetchRates() {
+        const currencies = { 
+            'USD': '🇺🇸 US Dollar', 'EUR': '🇪🇺 Euro', 'JPY': '🇯🇵 Japanese Yen', 
+            'GBP': '🇬🇧 British Pound', 'CHF': '🇨🇭 Swiss Franc', 
+            'SAR': '🇸🇦 Saudi Riyal', 'AED': '🇦🇪 UAE Dirham' 
+        };
         try {
             const res = await fetch('https://open.er-api.com/v6/latest/USD');
             const data = await res.json();
             const egp = data.rates.EGP;
-            document.getElementById('usd-buy').innerText = (egp - 0.05).toFixed(4);
-            document.getElementById('usd-sell').innerText = (egp + 0.05).toFixed(4);
-            const eurBase = egp / data.rates.EUR;
-            document.getElementById('eur-buy').innerText = (eurBase - 0.06).toFixed(4);
-            document.getElementById('eur-sell').innerText = (eurBase + 0.06).toFixed(4);
-        } catch (e) { console.error("FX Error"); }
+            let html = '';
+            
+            for (let [code, name] of Object.entries(currencies)) {
+                const rate = (egp / data.rates[code]).toFixed(4);
+                html += `<tr>
+                    <td>${name}</td>
+                    <td>${code}/EGP</td>
+                    <td class="val">${(rate * 0.998).toFixed(4)}</td>
+                    <td class="val">${(rate * 1.002).toFixed(4)}</td>
+                </tr>`;
+            }
+            document.getElementById('fx-body').innerHTML = html;
+        } catch (e) { document.getElementById('fx-body').innerHTML = 'Error loading rates.'; }
     }
 
-    // Extraction Logic
     async function init() {
         const output = document.getElementById('output');
-        const status = document.getElementById('status');
         try {
             const pdf = await pdfjsLib.getDocument(PDF_PATH).promise;
-            status.innerText = "Data successfully extracted from yoo.pdf";
+            document.getElementById('status').innerText = "Displaying extracted annex data:";
             
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
@@ -120,7 +129,7 @@
 
                     if (nums.length >= 2 && /[A-Za-z]/.test(lineStr)) {
                         tableRows += `<tr>
-                            <td style="font-weight:600">${lineStr.replace(/[0-9,.( )]{2,}/g, '').trim()}</td>
+                            <td style="font-weight:600; width:60%">${lineStr.replace(/[0-9,.( )]{2,}/g, '').trim()}</td>
                             <td class="val">${nums[0].str}</td>
                             <td class="val">${nums[nums.length-1].str}</td>
                         </tr>`;
@@ -128,13 +137,13 @@
                 });
 
                 if (tableRows) {
-                    output.innerHTML += `<div class="card active">
-                        <div class="card-header">Annex Data - Page ${i}</div>
+                    output.innerHTML += `<div class="card">
+                        <div class="card-header">Statistical Annex - Page ${i}</div>
                         <table><thead><tr><th>Description</th><th>Previous</th><th>Current</th></tr></thead>
                         <tbody>${tableRows}</tbody></table></div>`;
                 }
             }
-        } catch (e) { status.innerText = "Error: yoo.pdf not found in GitHub folder."; }
+        } catch (e) { document.getElementById('status').innerText = "File yoo.pdf not found."; }
     }
     window.onload = init;
 </script>
