@@ -2,73 +2,64 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CBE Live Data Portal</title>
+    <title>CBE Data Emergency Scan</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; padding: 20px; }
-        .container { max-width: 1000px; margin: auto; }
-        .status-pill { background: #003366; color: white; padding: 10px 20px; border-radius: 5px; margin-bottom: 20px; font-weight: bold; }
-        .table-card { background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; overflow: hidden; }
-        table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; padding: 12px; text-align: left; font-size: 11px; color: #64748b; border-bottom: 2px solid #e2e8f0; }
-        td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-        .label { font-weight: bold; color: #003366; }
-        .num { font-family: monospace; text-align: right; font-weight: bold; }
+        body { font-family: monospace; background: #1a1a1a; color: #00ff00; padding: 20px; }
+        .status { background: #333; padding: 10px; border-radius: 5px; margin-bottom: 20px; color: white; }
+        .page-box { border: 1px solid #444; padding: 15px; margin-bottom: 20px; background: #000; }
+        .line { border-bottom: 1px solid #222; padding: 5px 0; display: block; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="status" class="status-pill">⏳ Connecting to yoo.pdf...</div>
-        <div id="output"></div>
-    </div>
+
+<div id="status" class="status">Connecting to yoo.pdf...</div>
+<div id="output"></div>
 
 <script>
-    const PDF_URL = 'yoo.pdf';
+    const PDF_PATH = 'yoo.pdf';
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-    async function startExtraction() {
-        const output = document.getElementById('output');
+    async function extractAll() {
         const status = document.getElementById('status');
+        const output = document.getElementById('output');
 
         try {
-            const pdf = await pdfjsLib.getDocument(PDF_URL).promise;
-            status.innerText = `✅ Connected: Extracting ${pdf.numPages} Pages...`;
+            const pdf = await pdfjsLib.getDocument(PDF_PATH).promise;
+            status.innerText = `✅ Connected. Extracting ${pdf.numPages} pages...`;
 
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
-                const text = await page.getTextContent();
+                const textContent = await page.getTextContent();
                 
-                const rows = {};
-                text.items.forEach(item => {
+                let pageHtml = `<div class="page-box"><h3>PAGE ${i}</h3>`;
+                
+                // Group text by vertical position
+                const lines = {};
+                textContent.items.forEach(item => {
                     const y = Math.round(item.transform[5]);
-                    if (!rows[y]) rows[y] = [];
-                    rows[y].push({ x: item.transform[4], str: item.str.trim() });
+                    if (!lines[y]) lines[y] = [];
+                    lines[y].push(item.str);
                 });
 
-                let tableHtml = "";
-                Object.keys(rows).sort((a, b) => b - a).forEach(y => {
-                    const line = rows[y].sort((a, b) => a.x - b.x);
-                    const lineText = line.map(it => it.str).join(" ");
-                    const numbers = line.filter(it => /^-?[\d,.]+(\(.*\))?$/.test(it.str) && it.str.length > 1);
-
-                    if (numbers.length >= 2 && /[A-Za-z]/.test(lineText)) {
-                        tableHtml += `<tr>
-                            <td class="label">${lineText.replace(/[0-9,.( )]{2,}/g, '').trim()}</td>
-                            <td class="num">${numbers[0].str}</td>
-                            <td class="num">${numbers[numbers.length-1].str}</td>
-                        </tr>`;
+                // Sort and display every single line found
+                Object.keys(lines).sort((a, b) => b - a).forEach(y => {
+                    const text = lines[y].join(" ").trim();
+                    if (text.length > 0) {
+                        pageHtml += `<span class="line">${text}</span>`;
                     }
                 });
 
-                if (tableHtml) {
-                    output.innerHTML += `<div class="table-card"><table><thead><tr><th>Description</th><th>Previous</th><th>Current</th></tr></thead><tbody>${tableHtml}</tbody></table></div>`;
-                }
+                pageHtml += `</div>`;
+                output.innerHTML += pageHtml;
             }
+            status.innerText = "🚀 Scan Complete. If you see text below, we can now format it.";
         } catch (e) {
-            status.innerText = "❌ Security Block: Upload this file and the PDF to GitHub Pages to see the tables.";
+            status.innerText = "❌ Fatal Error: Could not read yoo.pdf. Check the filename capitalization.";
+            console.error(e);
         }
     }
-    window.onload = startExtraction;
+    window.onload = extractAll;
 </script>
 </body>
 </html>
