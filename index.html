@@ -2,63 +2,57 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CBE Data Dashboard</title>
+    <title>CBE Live Data Portal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f4f8; padding: 20px; }
         .container { max-width: 1000px; margin: auto; }
-        #status { background: #003366; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
-        .table-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; overflow: hidden; }
+        .status-pill { background: #003366; color: white; padding: 10px 20px; border-radius: 5px; margin-bottom: 20px; font-weight: bold; }
+        .table-card { background: white; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 30px; overflow: hidden; }
         table { width: 100%; border-collapse: collapse; }
         th { background: #f8fafc; padding: 12px; text-align: left; font-size: 11px; color: #64748b; border-bottom: 2px solid #e2e8f0; }
         td { padding: 12px; border-bottom: 1px solid #f1f5f9; font-size: 14px; }
-        .label { font-weight: 700; color: #1e293b; }
+        .label { font-weight: bold; color: #003366; }
         .num { font-family: monospace; text-align: right; font-weight: bold; }
-        .hidden { display: none; }
-        #manual-load { background: #c5a059; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
-
-<div class="container">
-    <div id="status">🔄 Attempting to locate yoo.pdf...</div>
-    <button id="manual-load" class="hidden">Click to Select yoo.pdf manually</button>
-    <input type="file" id="file-input" class="hidden" accept=".pdf">
-    <div id="output"></div>
-</div>
+    <div class="container">
+        <div id="status" class="status-pill">⏳ Connecting to yoo.pdf...</div>
+        <div id="output"></div>
+    </div>
 
 <script>
     const PDF_URL = 'yoo.pdf';
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-    async function processPDF(source) {
+    async function startExtraction() {
         const output = document.getElementById('output');
         const status = document.getElementById('status');
-        output.innerHTML = "";
-        
+
         try {
-            const pdf = await pdfjsLib.getDocument(source).promise;
-            status.innerText = `✅ Success: Extracting ${pdf.numPages} pages...`;
+            const pdf = await pdfjsLib.getDocument(PDF_URL).promise;
+            status.innerText = `✅ Connected: Extracting ${pdf.numPages} Pages...`;
 
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const text = await page.getTextContent();
+                
                 const rows = {};
-
                 text.items.forEach(item => {
                     const y = Math.round(item.transform[5]);
                     if (!rows[y]) rows[y] = [];
                     rows[y].push({ x: item.transform[4], str: item.str.trim() });
                 });
 
-                let pageTable = "";
+                let tableHtml = "";
                 Object.keys(rows).sort((a, b) => b - a).forEach(y => {
                     const line = rows[y].sort((a, b) => a.x - b.x);
                     const lineText = line.map(it => it.str).join(" ");
                     const numbers = line.filter(it => /^-?[\d,.]+(\(.*\))?$/.test(it.str) && it.str.length > 1);
 
                     if (numbers.length >= 2 && /[A-Za-z]/.test(lineText)) {
-                        pageTable += `<tr>
+                        tableHtml += `<tr>
                             <td class="label">${lineText.replace(/[0-9,.( )]{2,}/g, '').trim()}</td>
                             <td class="num">${numbers[0].str}</td>
                             <td class="num">${numbers[numbers.length-1].str}</td>
@@ -66,27 +60,15 @@
                     }
                 });
 
-                if (pageTable) {
-                    output.innerHTML += `<div class="table-card"><table><thead><tr><th>Item</th><th>Previous</th><th>Current</th></tr></thead><tbody>${pageTable}</tbody></table></div>`;
+                if (tableHtml) {
+                    output.innerHTML += `<div class="table-card"><table><thead><tr><th>Description</th><th>Previous</th><th>Current</th></tr></thead><tbody>${tableHtml}</tbody></table></div>`;
                 }
             }
         } catch (e) {
-            status.innerText = "❌ Auto-load failed. Browser blocked the file.";
-            document.getElementById('manual-load').classList.remove('hidden');
+            status.innerText = "❌ Security Block: Upload this file and the PDF to GitHub Pages to see the tables.";
         }
     }
-
-    // Attempt Auto-load
-    window.onload = () => processPDF(PDF_URL);
-
-    // Fallback for local security
-    document.getElementById('manual-load').onclick = () => document.getElementById('file-input').click();
-    document.getElementById('file-input').onchange = (e) => {
-        const file = e.target.files[0];
-        const reader = new FileReader();
-        reader.onload = function() { processPDF(new Uint8Array(this.result)); };
-        reader.readAsArrayBuffer(file);
-    };
+    window.onload = startExtraction;
 </script>
 </body>
 </html>
