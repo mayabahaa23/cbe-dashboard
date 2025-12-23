@@ -2,98 +2,109 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>CBE Data Portal & FX Tracker</title>
+    <title>CBE Unified Analytics Portal</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.min.js"></script>
     <style>
-        :root { --cbe-blue: #003366; --cbe-gold: #c5a059; }
-        body { font-family: 'Segoe UI', sans-serif; background: #f1f5f9; padding: 20px; }
+        :root { --cbe-blue: #003366; --cbe-gold: #c5a059; --bg: #f4f7f9; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding: 20px; }
         .container { max-width: 1000px; margin: auto; }
         
-        /* Dashboard Styling */
-        .status-bar { background: var(--cbe-blue); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; overflow: hidden; }
+        /* Header & Button Styling */
+        .control-panel { 
+            background: white; padding: 20px; border-radius: 12px; 
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px;
+            display: flex; gap: 15px; align-items: center; justify-content: center;
+        }
+        .btn { 
+            padding: 12px 24px; border-radius: 8px; border: none; 
+            font-weight: bold; cursor: pointer; transition: all 0.3s;
+            text-decoration: none; display: inline-flex; align-items: center; gap: 8px;
+        }
+        .btn-pdf { background: var(--cbe-blue); color: white; }
+        .btn-pdf:hover { background: #004a94; transform: translateY(-2px); }
+        .btn-fx { background: var(--cbe-gold); color: white; }
+        .btn-fx:hover { background: #b08e4d; transform: translateY(-2px); }
+
+        /* Data Display Styling */
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 25px; overflow: hidden; display: none; }
+        .card.active { display: block; }
+        .card-header { background: #f8fafc; padding: 15px; border-bottom: 2px solid #e2e8f0; font-weight: bold; color: var(--cbe-blue); }
         table { width: 100%; border-collapse: collapse; }
-        th { background: #f8fafc; padding: 12px; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 2px solid #e2e8f0; }
+        th { text-align: left; padding: 12px; background: #f8fafc; font-size: 11px; color: #64748b; text-transform: uppercase; }
         td { padding: 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+        .val { font-family: 'Courier New', monospace; text-align: right; font-weight: bold; }
         
-        /* Exchange Rate Section */
-        .fx-btn { background: var(--cbe-gold); color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .fx-btn:hover { background: #b08e4d; }
-        #fx-table { display: none; margin-top: 15px; border-top: 3px solid var(--cbe-gold); }
-        .rate-up { color: #10b981; font-weight: bold; }
+        #pdf-data-container { display: block; } /* PDF tables show by default */
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="status-bar">
-        <span id="status">⏳ Connecting to yoo.pdf...</span>
-        <button class="fx-btn" onclick="toggleFX()">View Live Exchange Rates (EGP)</button>
+    <div class="control-panel">
+        <a href="yoo.pdf" target="_blank" class="btn btn-pdf">
+            📄 View Full yoo.pdf
+        </a>
+        
+        <button class="btn btn-fx" onclick="toggleFX()">
+            💰 Live EGP Exchange Rates
+        </button>
     </div>
 
-    <div id="fx-table" class="card">
+    <div id="fx-card" class="card">
+        <div class="card-header">Live Interbank Exchange Rates (EGP)</div>
         <table>
             <thead>
-                <tr><th>Currency Pair</th><th>Buy Rate</th><th>Sell Rate</th><th>Market Status</th></tr>
+                <tr><th>Currency</th><th>Buy Rate</th><th>Sell Rate</th><th>Status</th></tr>
             </thead>
             <tbody id="fx-body">
-                <tr><td>USD / EGP</td><td id="usd-buy">Loading...</td><td id="usd-sell">Loading...</td><td>Live Interbank</td></tr>
-                <tr><td>EUR / EGP</td><td id="eur-buy">Loading...</td><td id="eur-sell">Loading...</td><td>Live Interbank</td></tr>
-                <tr><td>GBP / EGP</td><td id="gbp-buy">Loading...</td><td id="gbp-sell">Loading...</td><td>Live Interbank</td></tr>
+                <tr><td>USD / EGP</td><td id="usd-buy" class="val">...</td><td id="usd-sell" class="val">...</td><td>Live</td></tr>
+                <tr><td>EUR / EGP</td><td id="eur-buy" class="val">...</td><td id="eur-sell" class="val">...</td><td>Live</td></tr>
             </tbody>
         </table>
     </div>
 
-    <div id="output"></div>
+    <div id="pdf-data-container">
+        <div id="status" style="text-align:center; color:#666; margin-bottom:10px;">Loading data from yoo.pdf...</div>
+        <div id="output"></div>
+    </div>
 </div>
 
 <script>
     const PDF_PATH = 'yoo.pdf';
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
 
-    // 1. Toggle Exchange Rate Table
-    async function toggleFX() {
-        const table = document.getElementById('fx-table');
-        if (table.style.display === "block") {
-            table.style.display = "none";
-        } else {
-            table.style.display = "block";
-            fetchRates();
-        }
+    // Toggle Exchange Rate Visibility
+    function toggleFX() {
+        const fxCard = document.getElementById('fx-card');
+        fxCard.classList.toggle('active');
+        if(fxCard.classList.contains('active')) fetchLiveRates();
     }
 
-    // 2. Fetch Live EGP Rates (Simulated via public API endpoint logic)
-    async function fetchRates() {
+    // Fetch Actual Exchange Rates
+    async function fetchLiveRates() {
         try {
-            // Using a public exchange rate API (USD base)
-            const response = await fetch('https://open.er-api.com/v6/latest/USD');
-            const data = await response.json();
-            const egpRate = data.rates.EGP;
-            
-            document.getElementById('usd-buy').innerText = (egpRate - 0.10).toFixed(4);
-            document.getElementById('usd-sell').innerText = (egpRate + 0.05).toFixed(4);
-            
-            const eurRate = egpRate / data.rates.EUR;
-            document.getElementById('eur-buy').innerText = (eurRate - 0.12).toFixed(4);
-            document.getElementById('eur-sell').innerText = (eurRate + 0.06).toFixed(4);
-        } catch (e) {
-            console.error("FX Load Failed");
-        }
+            const res = await fetch('https://open.er-api.com/v6/latest/USD');
+            const data = await res.json();
+            const egp = data.rates.EGP;
+            document.getElementById('usd-buy').innerText = (egp - 0.05).toFixed(4);
+            document.getElementById('usd-sell').innerText = (egp + 0.05).toFixed(4);
+            const eurBase = egp / data.rates.EUR;
+            document.getElementById('eur-buy').innerText = (eurBase - 0.06).toFixed(4);
+            document.getElementById('eur-sell').innerText = (eurBase + 0.06).toFixed(4);
+        } catch (e) { console.error("FX Error"); }
     }
 
-    // 3. Automated PDF Extraction
-    async function runExtraction() {
+    // Extraction Logic
+    async function init() {
         const output = document.getElementById('output');
         const status = document.getElementById('status');
-
         try {
             const pdf = await pdfjsLib.getDocument(PDF_PATH).promise;
-            status.innerText = `✅ Connected: ${pdf.numPages} Pages Synced`;
-
+            status.innerText = "Data successfully extracted from yoo.pdf";
+            
             for (let i = 1; i <= pdf.numPages; i++) {
                 const page = await pdf.getPage(i);
                 const text = await page.getTextContent();
-                
                 const rows = {};
                 text.items.forEach(item => {
                     const y = Math.round(item.transform[5]);
@@ -101,34 +112,31 @@
                     rows[y].push({ x: item.transform[4], str: item.str.trim() });
                 });
 
-                let tableHtml = "";
-                Object.keys(rows).sort((a, b) => b - a).forEach(y => {
-                    const line = rows[y].sort((a, b) => a.x - b.x);
+                let tableRows = "";
+                Object.keys(rows).sort((a,b) => b-a).forEach(y => {
+                    const line = rows[y].sort((a,b) => a.x - b.x);
                     const lineStr = line.map(it => it.str).join(" ");
                     const nums = line.filter(it => /^-?[\d,.]+(\(.*\))?$/.test(it.str) && it.str.length > 1);
 
                     if (nums.length >= 2 && /[A-Za-z]/.test(lineStr)) {
-                        tableHtml += `<tr>
-                            <td style="font-weight:bold">${lineStr.replace(/[0-9,.( )]{2,}/g, '').trim()}</td>
-                            <td style="text-align:right">${nums[0].str}</td>
-                            <td style="text-align:right">${nums[nums.length-1].str}</td>
+                        tableRows += `<tr>
+                            <td style="font-weight:600">${lineStr.replace(/[0-9,.( )]{2,}/g, '').trim()}</td>
+                            <td class="val">${nums[0].str}</td>
+                            <td class="val">${nums[nums.length-1].str}</td>
                         </tr>`;
                     }
                 });
 
-                if (tableHtml) {
-                    output.innerHTML += `<div class="card">
-                        <div style="padding:15px; background:#f8fafc; font-weight:bold; color:var(--cbe-blue)">Annex Table Page ${i}</div>
+                if (tableRows) {
+                    output.innerHTML += `<div class="card active">
+                        <div class="card-header">Annex Data - Page ${i}</div>
                         <table><thead><tr><th>Description</th><th>Previous</th><th>Current</th></tr></thead>
-                        <tbody>${tableHtml}</tbody></table></div>`;
+                        <tbody>${tableRows}</tbody></table></div>`;
                 }
             }
-        } catch (e) {
-            status.innerText = "❌ Master File Error. Ensure 'yoo.pdf' is in GitHub.";
-        }
+        } catch (e) { status.innerText = "Error: yoo.pdf not found in GitHub folder."; }
     }
-
-    window.onload = runExtraction;
+    window.onload = init;
 </script>
 </body>
 </html>
